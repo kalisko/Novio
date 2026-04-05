@@ -16,18 +16,7 @@ export const DEFAULT_PAKE_OPTIONS: PakeCliOptions = {
   userAgent: '',
   showSystemTray: false,
   multiArch: false,
-  targets: (() => {
-    switch (process.platform) {
-      case 'linux':
-        return 'deb,appimage';
-      case 'darwin':
-        return 'dmg';
-      case 'win32':
-        return 'msi';
-      default:
-        return 'deb';
-    }
-  })(),
+  targets: 'dmg',
   useLocalFile: false,
   systemTrayIcon: '',
   proxyUrl: '',
