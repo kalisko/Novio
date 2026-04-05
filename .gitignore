@@ -1,84 +1,27 @@
 ```
 # Dependencies
 node_modules/
-.julia/
-zig-cache/
 target/
-
-# Build artifacts
-dist/
-build/
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
-
-# Python specific
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.pytest_cache/
-.mypy_cache/
-.coverage
 
 # Logs and temp files
 *.log
 *.tmp
-*.swp
-*.swo
 
-# Environment variables
+# Environment
 .env
 .env.local
 *.env.*
-
-# OS generated files
-.DS_Store
-Thumbs.db
 
 # Editors
 .vscode/
 .idea/
 
-# Rust/Cargo (since this appears to be a Tauri project)
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust/Cargo
 Cargo.lock
-Cargo.toml.orig
-*.rs.bk
 target/
-
-# Coverage reports
-coverage/
-htmlcov/
-
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+**/*.rs.bk
 ```
