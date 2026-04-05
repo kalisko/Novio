@@ -51,10 +51,10 @@ export interface PakeCliOptions {
   // Custom User-Agent, default off
   userAgent: string;
 
-  // Enable system tray, default off for macOS, on for Windows and Linux
+  // Enable system tray, default off for macOS
   showSystemTray: boolean;
 
-  // Tray icon, default same as app icon for Windows and Linux, macOS requires separate png or ico
+  // Tray icon, default same as app icon for macOS, requires separate png
   systemTrayIcon: string;
 
   // Recursive copy, when url is a local file path, if this option is enabled, the url path file and all its subFiles will be copied to the pake static file folder, default off
@@ -64,7 +64,7 @@ export interface PakeCliOptions {
   multiArch: boolean;
 
   // Build target architecture/format:
-  // Linux: "deb", "appimage", "deb-arm64", "appimage-arm64"; Windows: "x64", "arm64"; macOS: "intel", "apple", "universal"
+  // macOS: "intel", "apple", "universal"
   targets: string;
 
   // Debug mode, outputs more logs
@@ -75,9 +75,6 @@ export interface PakeCliOptions {
 
   // Set Api Proxy
   proxyUrl: string;
-
-  // Installer language, valid for Windows users, default is en-US
-  installerLanguage: string;
 
   // Hide window on close instead of exiting, platform-specific: true for macOS, false for others
   hideOnClose: boolean | undefined;
@@ -143,8 +140,6 @@ export interface PakeAppOptions extends PakeCliOptions {
 
 export interface PlatformSpecific<T> {
   macos: T;
-  linux: T;
-  windows: T;
 }
 
 export interface WindowConfig {

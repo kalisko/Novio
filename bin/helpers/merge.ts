@@ -7,7 +7,6 @@ import {
   generateSafeFilename,
   generateIdentifierSafeName,
   getSafeAppName,
-  generateLinuxPackageName,
 } from '@/utils/name';
 import { PakeAppOptions, PlatformMap, WindowConfig } from '@/types';
 import { tauriConfigDirectory, npmDirectory } from '@/utils/dir';
@@ -25,8 +24,6 @@ export async function mergeConfig(
   const sourceFiles = [
     'tauri.conf.json',
     'tauri.macos.conf.json',
-    'tauri.windows.conf.json',
-    'tauri.linux.conf.json',
     'pake.json',
   ];
 
@@ -119,15 +116,7 @@ export async function mergeConfig(
   tauriConf.version = appVersion;
 
   // Always set mainBinaryName to ensure binary uniqueness
-  const linuxBinaryName = `pake-${generateLinuxPackageName(name)}`;
-  tauriConf.mainBinaryName =
-    platform === 'linux'
-      ? linuxBinaryName
-      : `pake-${generateIdentifierSafeName(name)}`;
-
-  if (platform == 'win32') {
-    tauriConf.bundle.windows.wix.language[0] = installerLanguage;
-  }
+  tauriConf.mainBinaryName = `pake-${generateIdentifierSafeName(name)}`;
 
   const pathExists = await fsExtra.pathExists(url);
   if (pathExists) {
@@ -164,8 +153,6 @@ export async function mergeConfig(
   }
 
   const platformMap: PlatformMap = {
-    win32: 'windows',
-    linux: 'linux',
     darwin: 'macos',
   };
   const currentPlatform = platformMap[platform];
@@ -175,76 +162,6 @@ export async function mergeConfig(
   }
 
   tauriConf.pake.system_tray[currentPlatform] = showSystemTray;
-
-  // Processing targets are currently only open to Linux.
-  if (platform === 'linux') {
-    // Remove hardcoded desktop files and regenerate with correct app name
-    delete tauriConf.bundle.linux.deb.files;
-
-    // Generate correct desktop file configuration
-    const linuxName = generateLinuxPackageName(name);
-    const desktopFileName = `com.pake.${linuxName}.desktop`;
-    const iconName = `${linuxName}_512`;
-
-    // Create desktop file content
-    // Determine if title contains Chinese characters for Name[zh_CN]
-    const chineseName = title && /[\u4e00-\u9fa5]/.test(title) ? title : null;
-
-    const desktopContent = `[Desktop Entry]
-Version=1.0
-Type=Application
-Name=${name}
-${chineseName ? `Name[zh_CN]=${chineseName}` : ''}
-Comment=${name}
-Exec=${linuxBinaryName}
-Icon=${iconName}
-Categories=Network;WebBrowser;Utility;
-MimeType=text/html;text/xml;application/xhtml_xml;
-StartupNotify=true
-Terminal=false
-`;
-
-    // Write desktop file to src-tauri/assets directory where Tauri expects it
-    const srcAssetsDir = path.join(npmDirectory, 'src-tauri/assets');
-    const srcDesktopFilePath = path.join(srcAssetsDir, desktopFileName);
-    await fsExtra.ensureDir(srcAssetsDir);
-    await fsExtra.writeFile(srcDesktopFilePath, desktopContent);
-
-    // Set up desktop file in bundle configuration
-    // Use absolute path from src-tauri directory to assets
-    const desktopInstallPath = `/usr/share/applications/${desktopFileName}`;
-    tauriConf.bundle.linux.deb.files = {
-      [desktopInstallPath]: `assets/${desktopFileName}`,
-    };
-
-    // Add desktop file support for RPM
-    if (!tauriConf.bundle.linux.rpm) {
-      tauriConf.bundle.linux.rpm = {};
-    }
-    tauriConf.bundle.linux.rpm.files = {
-      [desktopInstallPath]: `assets/${desktopFileName}`,
-    };
-
-    const validTargets = [
-      'deb',
-      'appimage',
-      'rpm',
-      'deb-arm64',
-      'appimage-arm64',
-      'rpm-arm64',
-    ];
-    const baseTarget = options.targets.includes('-arm64')
-      ? options.targets.replace('-arm64', '')
-      : options.targets;
-
-    if (validTargets.includes(options.targets)) {
-      tauriConf.bundle.targets = [baseTarget];
-    } else {
-      logger.warn(
-        `✼ The target must be one of ${validTargets.join(', ')}, the default 'deb' will be used.`,
-      );
-    }
-  }
 
   // Set macOS bundle targets (for app vs dmg)
   if (platform === 'darwin') {
@@ -257,18 +174,6 @@ Terminal=false
   // Set icon.
   const safeAppName = getSafeAppName(name);
   const platformIconMap: PlatformMap = {
-    win32: {
-      fileExt: '.ico',
-      path: `png/${safeAppName}_256.ico`,
-      defaultIcon: 'png/icon_256.ico',
-      message: 'Windows icon must be .ico and 256x256px.',
-    },
-    linux: {
-      fileExt: '.png',
-      path: `png/${generateLinuxPackageName(name)}_512.png`,
-      defaultIcon: 'png/icon_512.png',
-      message: 'Linux icon must be .png and 512x512px.',
-    },
     darwin: {
       fileExt: '.icns',
       path: `icons/${safeAppName}.icns`,
@@ -325,14 +230,13 @@ Terminal=false
   }
 
   // Set tray icon path.
-  let trayIconPath =
-    platform === 'darwin' ? 'png/icon_512.png' : tauriConf.bundle.icon[0];
+  let trayIconPath = 'png/icon_512.png';
   if (systemTrayIcon.length > 0) {
     try {
       await fsExtra.pathExists(systemTrayIcon);
-      // 需要判断图标格式，默认只支持ico和png两种
+      // Check icon format, only support png for macOS
       let iconExt = path.extname(systemTrayIcon).toLowerCase();
-      if (iconExt == '.png' || iconExt == '.ico') {
+      if (iconExt == '.png') {
         const trayIcoPath = path.join(
           npmDirectory,
           `src-tauri/png/${safeAppName}${iconExt}`,
@@ -341,7 +245,7 @@ Terminal=false
         await fsExtra.copy(systemTrayIcon, trayIcoPath);
       } else {
         logger.warn(
-          `✼ System tray icon must be .ico or .png, but you provided ${iconExt}.`,
+          `✼ System tray icon must be .png, but you provided ${iconExt}.`,
         );
         logger.warn(`✼ Default system tray icon will be used.`);
       }
@@ -431,9 +335,7 @@ ${entitlementEntries.join('\n')}
 
   // Save config file.
   const platformConfigPaths: PlatformMap = {
-    win32: 'tauri.windows.conf.json',
     darwin: 'tauri.macos.conf.json',
-    linux: 'tauri.linux.conf.json',
   };
 
   const configPath = path.join(

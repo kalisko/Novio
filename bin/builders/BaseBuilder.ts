@@ -7,10 +7,7 @@ import { PakeAppOptions } from '@/types';
 import { checkRustInstalled, ensureRustEnv, installRust } from '@/helpers/rust';
 import { mergeConfig } from '@/helpers/merge';
 import tauriConfig from '@/helpers/tauriConfig';
-import {
-  generateIdentifierSafeName,
-  generateLinuxPackageName,
-} from '@/utils/name';
+import { generateIdentifierSafeName } from '@/utils/name';
 import { npmDirectory } from '@/utils/dir';
 import { getSpinner } from '@/utils/info';
 import { shellExec } from '@/utils/shell';
@@ -46,8 +43,7 @@ export default abstract class BaseBuilder {
   }
 
   private getInstallTimeout(): number {
-    // Windows needs more time due to native compilation and antivirus scanning
-    return process.platform === 'win32' ? 900000 : 600000;
+    return 600000;
   }
 
   private getBuildTimeout(): number {
@@ -147,9 +143,7 @@ export default abstract class BaseBuilder {
     // Show helpful message for first-time users
     if (!tauriTargetPathExists) {
       logger.info(
-        process.platform === 'win32'
-          ? '✺ First-time setup may take 10-15 minutes on Windows (compiling dependencies)...'
-          : '✺ First-time setup may take 5-10 minutes (installing dependencies)...',
+        '✺ First-time setup may take 5-10 minutes (installing dependencies)...',
       );
     }
 
@@ -270,44 +264,13 @@ export default abstract class BaseBuilder {
     const resolveExecEnv = () =>
       Object.keys(buildEnv).length > 0 ? buildEnv : undefined;
 
-    // Warn users about potential AppImage build failures on modern Linux systems.
-    // The linuxdeploy tool bundled in Tauri uses an older strip tool that doesn't
-    // recognize the .relr.dyn section introduced in glibc 2.38+.
-    if (process.platform === 'linux' && target === 'appimage') {
-      if (!buildEnv.NO_STRIP) {
-        logger.warn(
-          '⚠ Building AppImage on Linux may fail due to strip incompatibility with glibc 2.38+',
-        );
-        logger.warn(
-          '⚠ If build fails, retry with: NO_STRIP=1 pake <url> --targets appimage',
-        );
-      }
-    }
-
     const buildCommand = `cd "${npmDirectory}" && ${this.getBuildCommand(packageManager)}`;
     const buildTimeout = this.getBuildTimeout();
 
     try {
       await shellExec(buildCommand, buildTimeout, resolveExecEnv());
     } catch (error) {
-      const shouldRetryWithoutStrip =
-        process.platform === 'linux' &&
-        target === 'appimage' &&
-        !buildEnv.NO_STRIP &&
-        this.isLinuxDeployStripError(error);
-
-      if (shouldRetryWithoutStrip) {
-        logger.warn(
-          '⚠ AppImage build failed during linuxdeploy strip step, retrying with NO_STRIP=1 automatically.',
-        );
-        buildEnv = {
-          ...buildEnv,
-          NO_STRIP: '1',
-        };
-        await shellExec(buildCommand, buildTimeout, resolveExecEnv());
-      } else {
-        throw error;
-      }
+      throw error;
     }
 
     // Copy app
@@ -372,21 +335,6 @@ export default abstract class BaseBuilder {
 
   abstract getFileName(): string;
 
-  private isLinuxDeployStripError(error: unknown): boolean {
-    if (!(error instanceof Error) || !error.message) {
-      return false;
-    }
-    const message = error.message.toLowerCase();
-    return (
-      message.includes('linuxdeploy') ||
-      message.includes('failed to run linuxdeploy') ||
-      message.includes('strip:') ||
-      message.includes('unable to recognise the format of the input file') ||
-      message.includes('appimage tool failed') ||
-      message.includes('strip tool')
-    );
-  }
-
   protected static readonly ARCH_MAPPINGS: Record<
     string,
     Record<string, string>
@@ -395,14 +343,6 @@ export default abstract class BaseBuilder {
       arm64: 'aarch64-apple-darwin',
       x64: 'x86_64-apple-darwin',
       universal: 'universal-apple-darwin',
-    },
-    win32: {
-      arm64: 'aarch64-pc-windows-msvc',
-      x64: 'x86_64-pc-windows-msvc',
-    },
-    linux: {
-      arm64: 'aarch64-unknown-linux-gnu',
-      x64: 'x86_64-unknown-linux-gnu',
     },
   };
 
@@ -541,9 +481,7 @@ export default abstract class BaseBuilder {
     if (await fsExtra.pathExists(binaryPath)) {
       await fsExtra.copy(binaryPath, outputPath);
       // Make binary executable on Unix-like systems
-      if (process.platform !== 'win32') {
-        await fsExtra.chmod(outputPath, 0o755);
-      }
+      await fsExtra.chmod(outputPath, 0o755);
     } else {
       logger.warn(`✼ Raw binary not found at ${binaryPath}, skipping...`);
     }
@@ -576,23 +514,15 @@ export default abstract class BaseBuilder {
    * Get the output path for the raw binary file
    */
   protected getRawBinaryPath(appName: string): string {
-    const extension = process.platform === 'win32' ? '.exe' : '';
-    const suffix = process.platform === 'win32' ? '' : '-binary';
-    return `${appName}${suffix}${extension}`;
+    return `${appName}-binary`;
   }
 
   /**
    * Get the binary name based on app name and platform
    */
   protected getBinaryName(appName: string): string {
-    const extension = process.platform === 'win32' ? '.exe' : '';
-
-    // Use unique binary name for all platforms to avoid conflicts
-    const nameToUse =
-      process.platform === 'linux'
-        ? generateLinuxPackageName(appName)
-        : generateIdentifierSafeName(appName);
-    return `pake-${nameToUse}${extension}`;
+    // Use unique binary name to avoid conflicts
+    return `pake-${generateIdentifierSafeName(appName)}`;
   }
 
   /**

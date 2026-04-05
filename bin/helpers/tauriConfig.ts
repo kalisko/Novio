@@ -8,33 +8,19 @@ const pakeConf = fsExtra.readJSONSync(path.join(tauriSrcDir, 'pake.json'));
 const CommonConf = fsExtra.readJSONSync(
   path.join(tauriSrcDir, 'tauri.conf.json'),
 );
-const WinConf = fsExtra.readJSONSync(
-  path.join(tauriSrcDir, 'tauri.windows.conf.json'),
-);
 const MacConf = fsExtra.readJSONSync(
   path.join(tauriSrcDir, 'tauri.macos.conf.json'),
 );
-const LinuxConf = fsExtra.readJSONSync(
-  path.join(tauriSrcDir, 'tauri.linux.conf.json'),
-);
-
-const platformConfigs = {
-  win32: WinConf,
-  darwin: MacConf,
-  linux: LinuxConf,
-};
 
 const { platform } = process;
-// @ts-ignore
-const platformConfig = platformConfigs[platform];
 
 let tauriConfig = {
   ...CommonConf,
-  bundle: platformConfig.bundle,
+  bundle: MacConf.bundle,
   app: {
     ...CommonConf.app,
     trayIcon: {
-      ...(platformConfig?.app?.trayIcon ?? {}),
+      ...(MacConf?.app?.trayIcon ?? {}),
     },
   },
   build: CommonConf.build,
