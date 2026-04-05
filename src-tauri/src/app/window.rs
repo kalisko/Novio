@@ -164,9 +164,21 @@ fn build_window(
 
     let user_agent = config.user_agent.get();
 
+    // Properly escape the config for embedding in JavaScript to prevent XSS
+    let config_json = serde_json::to_string(&window_config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    
+    // Escape special characters for safe embedding in JavaScript
+    let escaped_config = config_json
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t");
+    
     let config_script = format!(
-        "window.pakeConfig = {}",
-        serde_json::to_string(&window_config).unwrap()
+        "window.pakeConfig = '{}'",
+        escaped_config
     );
 
     // Platform-specific title: macOS prefers empty, others fallback to product name
@@ -262,7 +274,7 @@ fn build_window(
         .initialization_script(include_str!("../inject/custom.js"));
 
     #[cfg(target_os = "windows")]
-    let mut windows_browser_args = String::from("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-blink-features=AutomationControlled");
+    let mut windows_browser_args = String::from("--disable-features=msWebOOUI,msPdfOOUI --disable-blink-features=AutomationControlled");
 
     #[cfg(target_os = "linux")]
     let mut linux_browser_args = String::from("--disable-blink-features=AutomationControlled");

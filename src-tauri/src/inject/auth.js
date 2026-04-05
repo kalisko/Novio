@@ -8,31 +8,42 @@ function matchesAuthUrl(url, baseUrl = window.location.href) {
     const pathname = urlObj.pathname.toLowerCase();
     const fullUrl = urlObj.href.toLowerCase();
 
-    // Common OAuth providers and paths
+    // Common OAuth providers and paths - strict patterns to prevent bypass
     const oauthPatterns = [
-      /accounts\.google\.com/,
-      /accounts\.google\.[a-z]+/,
-      /login\.microsoftonline\.com/,
-      /github\.com\/login/,
-      /facebook\.com\/.*\/dialog/,
-      /twitter\.com\/oauth/,
-      /appleid\.apple\.com/,
-      /\/oauth\//,
-      /\/auth\//,
-      /\/authorize/,
-      /\/login\/oauth/,
-      /\/signin/,
-      /\/login/,
-      /servicelogin/,
-      /\/o\/oauth2/,
+      /^accounts\.google\.com$/,
+      /^accounts\.google\.[a-z]+$/,
+      /^login\.microsoftonline\.com$/,
+      /^github\.com$/,
+      /^facebook\.com$/,
+      /^twitter\.com$/,
+      /^appleid\.apple\.com$/,
     ];
 
-    const isMatch = oauthPatterns.some(
-      (pattern) =>
-        pattern.test(hostname) ||
-        pattern.test(pathname) ||
-        pattern.test(fullUrl),
+    // Strict path patterns that must match exactly
+    const oauthPathPatterns = [
+      /^\/oauth(?:\/|$)/,
+      /^\/auth(?:\/|$)/,
+      /^\/authorize(?:\?|$)/,
+      /^\/login\/oauth(?:\/|$)/,
+      /^\/signin(?:\/|$|\?)/,
+      /^\/login(?:\/|$|\?)/,
+      /servicelogin/,
+      /^\/o\/oauth2(?:\/|$)/,
+      /^\/dialog(?:\/|$)/,
+    ];
+
+    // Check hostname against strict provider list
+    const isKnownProvider = oauthPatterns.some(
+      (pattern) => pattern.test(hostname),
     );
+
+    // Check path against OAuth patterns
+    const isOAuthPath = oauthPathPatterns.some(
+      (pattern) => pattern.test(pathname),
+    );
+
+    // Only consider it an auth URL if it's a known provider OR has OAuth path
+    const isMatch = isKnownProvider || isOAuthPath;
 
     if (isMatch) {
       console.log("[Pake] OAuth URL detected:", url);
